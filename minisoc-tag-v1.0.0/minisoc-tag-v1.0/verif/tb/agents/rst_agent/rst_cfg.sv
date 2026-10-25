@@ -1,4 +1,4 @@
-class rst_cfg extends uvm_objetc;
+class rst_cfg extends uvm_object;
     `uvm_object_utils(rst_cfg)
 
     virtual rst_if vif;
@@ -6,6 +6,6 @@ class rst_cfg extends uvm_objetc;
 
     function new(string name = "rst_cfg");
         super.new(name);
-    endfunction //new()
+    endfunction 
 
-endclass //rst_cfg
+endclass: rst_cfg

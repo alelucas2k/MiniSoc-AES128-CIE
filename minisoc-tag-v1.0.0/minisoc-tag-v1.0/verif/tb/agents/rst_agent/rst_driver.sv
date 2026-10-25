@@ -11,7 +11,7 @@ class rst_driver extends uvm_driver #(rst_seq_item);
 
     virtual function void build_phase(uvm_phase phase);
         super.build_phase(phase);
-        if (`uvm_config_db #(rst_cfg)::get(this, "", "cfg", cfg))
+        if (!uvm_config_db#(rst_cfg)::get(this, "", "cfg", cfg))
             `uvm_fatal("RST_DRV", "Não foi possível obter rst_cfg do config.db")
         vif = cfg.vif;
     endfunction
@@ -21,9 +21,9 @@ class rst_driver extends uvm_driver #(rst_seq_item);
         //estado inicial no tempo 0
         vif.rst_n <= 1'b1;
 
-        forevre begin
+        forever begin
             seq_item_port.get_next_item(req);
-            driver_reset(req);
+            drive_reset(req);
             seq_item_port.item_done();
         end
     endtask
@@ -42,7 +42,7 @@ class rst_driver extends uvm_driver #(rst_seq_item);
         end
 
         //ativar o reset
-        `uvm_info("RST_DRV", $sformat("Ativando rst_n=0 por %0d ciclos (sync=%0b)", 
+        `uvm_info("RST_DRV", $sformatf("Ativando rst_n=0 por %0d ciclos (sync=%0b)", 
                                         item.assert_duration_cycles, item.sync_to_clk), UVM_MEDIUM)
         vif.rst_n <= 1'b0;
 
