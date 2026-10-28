@@ -11,17 +11,20 @@ MINISOC_RTL = \
 	$(RTL_DIR)/minisoc_top.sv
 
 INCDIRS = \
-	+incdir+./agents/rst_agent \
-	+incdir+./sequences        \
+	+incdir+./agents/rst_agent     \
+	+incdir+./agents/clk_pll_agent \
+	+incdir+./sequences            \
 	+incdir+./tests
 
 TB_FILES = \
-	./agents/rst_agent/rst_if.sv        \
-	./agents/rst_agent/rst_agent_pkg.sv \
+	./agents/rst_agent/rst_if.sv                 \
+	./agents/rst_agent/rst_agent_pkg.sv          \
+	./agents/clk_pll_agent/clk_pll_if.sv         \
+	./agents/clk_pll_agent/clk_pll_agent_pkg.sv  \
 	./top_tb.sv
 
 VCS_FLAGS = -full64 -sverilog -ntb_opts uvm-1.2 -kdb -debug_access+all \
-            +ntb_random_seed=random -timescale=1ps/1ps -l vcs_uvm.log
+            +ntb_random_seed=random -xlrm floating_pnt_constraint -timescale=1ps/1ps -l vcs_uvm.log
 
 vcs_comp:
 	vcs $(VCS_FLAGS) $(INCDIRS) $(MINISOC_RTL) $(TB_FILES)
@@ -31,11 +34,11 @@ vcs_run:
 
 # Abre a simulação de forma interativa na GUI (Verdi ou DVE)
 vcs_gui:
-	./simv -gui &
+	./simv -gui -verdi_opts "-sswr signal.rc" &
 
 # Abre o arquivo de ondas salvo diretamente no Verdi usando a base KDB compilada
 verdi:
-	verdi -dbdir ./simv.daidir -ssf minisoc_waves.fsdb &
+	verdi -dbdir ./simv.daidir -ssf minisoc_waves.fsdb -sswr signal.rc &
 
 # Abre o arquivo de ondas VPD no DVE
 dve:

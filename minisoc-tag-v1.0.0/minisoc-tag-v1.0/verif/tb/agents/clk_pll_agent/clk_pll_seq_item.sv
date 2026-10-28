@@ -31,7 +31,7 @@ class clk_pll_seq_item extends uvm_sequence_item;
     `uvm_object_utils_end
 
     function new(string name = "clk_pll_seq_item");
-        super.new(name)
+        super.new(name);
         
     endfunction
 
