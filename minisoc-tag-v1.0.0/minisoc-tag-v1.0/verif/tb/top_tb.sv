@@ -4,17 +4,19 @@ import uvm_pkg::*;
 `include "uvm_macros.svh"
 import rst_agent_pkg::*;
 import clk_pll_agent_pkg::*;
+import spi_agent_pkg::*;
+import mem_agent_pkg::*;
+`include "spi_smoke_test.sv"
 `include "rst_smoke_test.sv"
+`include "mem_smoke_test.sv"
 
 module top_tb;
 
-    //clock de referencia 2GHz
-    // logic clk = 1'b0;
-    // always #250ps clk = ~clk;
-
-    //interface do reset e clk_pll
+    //interfaces fisicas: cada interface do DUT tem a sua
     clk_pll_if u_clk_pll_if ();
-    rst_if u_rst_if (.clk(u_clk_pll_if.clk));
+    rst_if     u_rst_if (.clk(u_clk_pll_if.clk));
+    spi_if     u_spi_if ();
+    mem_if     u_mem_if ();
 
     //conectando o dut ao clk_pll_if
     assign u_clk_pll_if.rst_n       = u_rst_if.rst_n;
@@ -24,39 +26,34 @@ module top_tb;
     assign u_clk_pll_if.sys_clk     = dut.sys_clk;
     assign u_clk_pll_if.sys_rst_n   = dut.sys_rst_n;
 
-
-    //sinais básicos para interfaces sem agentes
-    logic        spi_sclk    = 1'b0;
-    logic        spi_cs_n    = 1'b1;
-    logic        spi_mosi    = 1'b0;
-    logic        spi_miso;
-    logic        mem_clk     = 1'b0;
-    logic [31:0] mem_i_data  = 32'b0;
-    logic        mem_i_wr_en = 1'b0;
-    logic [9:0]  mem_i_addr  = 10'b0;
-    logic [31:0] mem_o_data;
-
     //instacia do dut
+    // CAMINHO DE DADOS: os drivers dos agentes escrevem nos sinais das
+    // interfaces (u_spi_if, u_mem_if, u_rst_if) e eles chegam ao DUT por
+    // estas conexoes de porta. Os monitores olham os mesmos fios.
     minisoc_top dut(
         .clk(u_clk_pll_if.clk),
         .rst_n(u_rst_if.rst_n),
-        .spi_sclk(spi_sclk),
-        .spi_cs_n(spi_cs_n),
-        .spi_mosi(spi_mosi),
-        .spi_miso(spi_miso),
-        .mem_clk(mem_clk),
-        .mem_i_data(mem_i_data),
-        .mem_i_wr_en(mem_i_wr_en),
-        .mem_i_addr(mem_i_addr),
-        .mem_o_data(mem_o_data)
 
+        // SPI: TB e o mestre, DUT e o escravo
+        .spi_sclk(u_spi_if.sclk),
+        .spi_cs_n(u_spi_if.cs_n),
+        .spi_mosi(u_spi_if.mosi),
+        .spi_miso(u_spi_if.miso),
+
+        // MEMORY DATA: TB e o mestre externo da SRAM
+        .mem_clk(u_mem_if.mem_clk),
+        .mem_i_data(u_mem_if.wdata),
+        .mem_i_wr_en(u_mem_if.wr_en),
+        .mem_i_addr(u_mem_if.addr),
+        .mem_o_data(u_mem_if.rdata)
     );
 
-    
+
     initial begin
 
-        // 1. Geração de ondas no formato FSDB (para o Synopsys Verdi)
-        $fsdbDumpfile("minisoc_waves.fsdb");
+        string wave;
+        if (!$value$plusargs("WAVE=%s", wave)) wave = "minisoc_waves";
+        $fsdbDumpfile({wave, ".fsdb"});
         $fsdbDumpvars(0, top_tb, "+all"); // "+all" permite ver structs, arrays e enums da FSM!
 
         // 2. Geração de ondas no formato VPD (nativo do VCS / DVE)
@@ -64,13 +61,14 @@ module top_tb;
         $vcdpluson(0, top_tb);
         $vcdplusmemon(); // Habilita visualização de arrays de memória
 
-        //registra a if no config.db
+        //registra as interfaces no config.db para os testes buscarem
         uvm_config_db#(virtual rst_if)::set(null, "uvm_test_top", "rst_vif", u_rst_if);
         uvm_config_db#(virtual clk_pll_if)::set(null, "uvm_test_top", "clk_vif", u_clk_pll_if);
+        uvm_config_db#(virtual spi_if)::set(null, "uvm_test_top", "spi_vif", u_spi_if);
+        uvm_config_db#(virtual mem_if)::set(null, "uvm_test_top", "mem_vif", u_mem_if);
 
-        //inicia o teste
         run_test("rst_smoke_test");
-    
+
     end
 
 

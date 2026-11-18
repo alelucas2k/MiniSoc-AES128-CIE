@@ -24,7 +24,6 @@ class rst_monitor extends uvm_monitor;
         forever begin
             rst_seq_item item;
 
-
             //espera o rst_n baixar
             if(vif.rst_n !== 1'b0)
                 @(negedge vif.rst_n);

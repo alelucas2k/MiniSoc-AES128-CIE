@@ -16,9 +16,7 @@ class clk_pll_seq_item extends uvm_sequence_item;
         ref_half_period_ps == 250ps;
     }
 
-
     // Regista o sequence_item na UVM Factory e automatiza os metods print(), copy(),
-    // compare() e record() para tods os campos listados, definindo a formatação de
     // exibição no log (binário, tempo ou decimal).
     `uvm_object_utils_begin(clk_pll_seq_item)
         `uvm_field_int(clk_en,                     UVM_ALL_ON | UVM_BIN)

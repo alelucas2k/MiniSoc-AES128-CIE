@@ -12,9 +12,8 @@ class rst_smoke_seq extends uvm_sequence #(rst_seq_item);
     virtual task body();
         rst_seq_item req;
 
-
         //reset sincrono 20 ciclos de 500 ps
-        `uvm_info("RST_SEQ", "---> disparando reset sincrono", UVM_LOW)
+        `uvm_info("RST_SEQ", "disparando reset sincrono", UVM_LOW)
         req = rst_seq_item::type_id::create("req_sync");
         start_item(req);
         if(!req.randomize()with{
@@ -27,7 +26,7 @@ class rst_smoke_seq extends uvm_sequence #(rst_seq_item);
 
 
         //reset em runtime assincrono
-        `uvm_info("RST_SEQ", "---> disparando reset assincrono", UVM_LOW)
+        `uvm_info("RST_SEQ", "disparando reset assincrono", UVM_LOW)
         req = rst_seq_item::type_id::create("req_async");
         start_item(req);
         if(!req.randomize()with{

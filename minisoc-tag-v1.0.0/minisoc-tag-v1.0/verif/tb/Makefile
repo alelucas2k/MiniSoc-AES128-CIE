@@ -13,6 +13,9 @@ MINISOC_RTL = \
 INCDIRS = \
 	+incdir+./agents/rst_agent     \
 	+incdir+./agents/clk_pll_agent \
+	+incdir+./agents/spi_agent     \
+	+incdir+./agents/mem_agent     \
+	+incdir+./env 				\
 	+incdir+./sequences            \
 	+incdir+./tests
 
@@ -21,6 +24,11 @@ TB_FILES = \
 	./agents/rst_agent/rst_agent_pkg.sv          \
 	./agents/clk_pll_agent/clk_pll_if.sv         \
 	./agents/clk_pll_agent/clk_pll_agent_pkg.sv  \
+	./agents/spi_agent/spi_if.sv                 \
+	./agents/spi_agent/spi_agent_pkg.sv          \
+	./agents/mem_agent/mem_if.sv                 \
+	./agents/mem_agent/mem_agent_pkg.sv          \
+	./env/minisoc_env_pkg.sv 					\
 	./top_tb.sv
 
 VCS_FLAGS = -full64 -sverilog -ntb_opts uvm-1.2 -kdb -debug_access+all \
@@ -31,6 +39,16 @@ vcs_comp:
 
 vcs_run:
 	./simv +UVM_VERBOSITY=UVM_MEDIUM
+
+# Smoke tests individuais (selecionados por +UVM_TESTNAME)
+run_rst_smoke:
+	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=rst_smoke_test
+
+run_spi_smoke:
+	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=spi_smoke_test
+
+run_mem_smoke:
+	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=mem_smoke_test
 
 # Abre a simulação de forma interativa na GUI (Verdi ou DVE)
 vcs_gui:

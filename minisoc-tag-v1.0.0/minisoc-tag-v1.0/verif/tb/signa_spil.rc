@@ -1,0 +1,95 @@
+Magic 271485
+Revision Verdi_X-2025.06-SP2
+
+; Window Layout <x> <y> <width> <height> <signalwidth> <valuewidth>
+viewPort 0 11 1534 319 177 65
+
+; File list:
+; openDirFile [-d delimiter] [-s time_offset] [-rf auto_bus_rule_file] path_name file_name
+openDirFile -d / "" "/home/alessandro.santos/Documentos/minisoc-tag-v1.0.0/minisoc-tag-v1.0/verif/tb/minisoc_waves.fsdb"
+
+; file time scale:
+; fileTimeScale ### s|ms|us|ns|ps
+
+; signal spacing:
+signalSpacing 5
+
+; windowTimeUnit is used for zoom, cursor & marker
+; waveform viewport range
+zoom 0.000000 45612.993103
+cursor 1750.000000
+marker 0.000000
+
+; user define markers
+; userMarker time_pos marker_name color linestyle
+; visible top row signal index
+top 10
+; marker line index
+markerPos 22
+
+; event list
+; addEvent event_name event_expression
+; curEvent event_name
+
+
+
+COMPLEX_EVENT_BEGIN
+
+
+COMPLEX_EVENT_END
+
+
+
+; toolbar current search type
+; curSTATUS search_type
+curSTATUS ByChange
+
+
+addGroup "G1"
+activeDirFile "" "/home/alessandro.santos/Documentos/minisoc-tag-v1.0.0/minisoc-tag-v1.0/verif/tb/minisoc_waves.fsdb"
+addSignal -h 15 /top_tb/u_rst_if/clk
+addSignal -h 15 -holdScope rst_n
+addSignal -h 15 -UNSIGNED -HEX /top_tb/u_clk_pll_if/pll_div_sel[1:0]
+addSignal -h 15 -holdScope pll_enable
+addSignal -h 15 -holdScope pll_locked
+addSignal -h 15 -holdScope sys_clk
+addGroup "G2"
+addGroup "G3"
+addSignal -h 15 /top_tb/u_spi_if/cs_n
+addSignal -h 15 -holdScope miso
+addSignal -h 15 -holdScope mosi
+addSignal -h 15 -holdScope sclk
+addSignal -h 15 -UNSIGNED -HEX /top_tb/dut/u_spi/cmd_addr[5:0]
+addSignal -h 15 -UNSIGNED -HEX -holdScope cmd_data[31:0]
+addSignal -h 15 -holdScope cmd_rwb
+addSignal -h 15 -holdScope cmd_valid_sys
+addSignal -h 15 -holdScope frame_toggle_sclk
+addSignal -h 15 -UNSIGNED -HEX -holdScope read_data_sys[31:0]
+addSignal -h 15 -UNSIGNED -HEX -holdScope rx_bitcnt_sclk[5:0]
+addSignal -h 15 -UNSIGNED -HEX -holdScope rx_frame_sclk[39:0]
+addSignal -h 15 -UNSIGNED -HEX -holdScope rx_shift_sclk[39:0]
+addSignal -h 15 -UNSIGNED -HEX -holdScope tx_response_sclk[39:0]
+addGroup "G4"
+
+; getSignalForm Scope Hierarchy Status
+; active file of getSignalForm
+activeDirFile "" "/home/alessandro.santos/Documentos/minisoc-tag-v1.0.0/minisoc-tag-v1.0/verif/tb/minisoc_waves.fsdb"
+
+GETSIGNALFORM_SCOPE_HIERARCHY_BEGIN
+getSignalForm close
+
+"/top_tb"
+"/top_tb/dut"
+"/top_tb/dut/u_spi"
+
+SCOPE_LIST_BEGIN
+"/top_tb"
+"/top_tb/u_rst_if"
+"/top_tb/u_clk_pll_if"
+"/top_tb/unnamed$$_0"
+"/top_tb/u_spi_if"
+SCOPE_LIST_END
+
+GETSIGNALFORM_SCOPE_HIERARCHY_END
+
+
