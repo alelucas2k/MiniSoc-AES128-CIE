@@ -1,94 +1,72 @@
-`ifndef MEM_SMOKE_TEST_SV
-`define MEM_SMOKE_TEST_SV
-
-
-`include "rst_init_seq.sv"
-`include "mem_smoke_seq.sv"
-
-import minisoc_env_pkg::*;   
+`ifndef MEM_SMOKE_SEQ_SV
+`define MEM_SMOKE_SEQ_SV
 
 // ----------------------------------------------------------------------------
-// Smoke Test da MEMORY DATA.
+// Smoke sequence da MEMORY DATA: escreve 4 palavras (o tamanho de um bloco
+// AES) e le as mesmas 4 de volta, comparando.
 //
-// O que ele monta:
-//   - rst_agent (ativo): o reset deixa MEM_SEL_AES = 0, entao a interface
-//     externa fica dona da memoria (condicao para este teste).
-//   - mem_agent (ativo): driver mestre externo + monitor.
-//   - mem_listener (vindo do minisoc_env_pkg): pendurado no analysis port.
-//
-// O que ele verifica:
-//   - Readback: escreve 4 palavras e le as mesmas 4 (checks na sequence).
-//   - Caminho de observacao: 4 writes + 4 reads = 8 acessos.
+// Pressupoe MEM_SEL_AES = 0 (valor padrao apos o reset), ou seja, a
+// interface externa e dona da memoria. A memoria nao tem reset, entao o
+// conteudo inicial e indefinido: por isso o teste sempre escreve antes
+// de ler.
 // ----------------------------------------------------------------------------
-class mem_smoke_test extends uvm_test;
-    `uvm_component_utils(mem_smoke_test)
+class mem_smoke_seq extends uvm_sequence #(mem_seq_item);
+    `uvm_object_utils(mem_smoke_seq)
 
-    // VIP de Reset
-    rst_cfg      r_cfg;
-    rst_agent    r_agt;
+    // Padroes de teste faceis de reconhecer na forma de onda
+    // (e o bloco de exemplo do Block Guide, secao 7.1)
+    bit [31:0] test_pattern [4] = '{
+        32'h0011_2233, 32'h4455_6677, 32'h8899_AABB, 32'hCCDD_EEFF
+    };
 
-    // VIP de MEMORY DATA
-    mem_cfg      m_cfg;
-    mem_agent    m_agt;
-    mem_listener m_list;
-
-    function new(string name = "mem_smoke_test", uvm_component parent = null);
-        super.new(name, parent);
+    function new(string name = "mem_smoke_seq");
+        super.new(name);
     endfunction
 
-    virtual function void build_phase(uvm_phase phase);
-        super.build_phase(phase);
+    virtual task body();
+        mem_seq_item req;
+        bit [9:0]  tgt_addr;  // copias locais para usar no randomize with
+        bit [31:0] tgt_data;
 
-        // Configura o Agente de Reset
-        r_cfg = rst_cfg::type_id::create("r_cfg");
-        if (!uvm_config_db#(virtual rst_if)::get(this, "", "rst_vif", r_cfg.vif))
-            `uvm_fatal("TEST", "Nao encontrou rst_vif no uvm_config_db")
-        r_cfg.is_active = UVM_ACTIVE;
-        uvm_config_db#(rst_cfg)::set(this, "r_agt", "cfg", r_cfg);
+        // 1. Escreve as 4 palavras nos enderecos 0..3
+        for (int i = 0; i < 4; i++) begin
+            tgt_addr = i[9:0];
+            tgt_data = test_pattern[i];
 
-        // Configura o Agente de Memoria
-        m_cfg = mem_cfg::type_id::create("m_cfg");
-        if (!uvm_config_db#(virtual mem_if)::get(this, "", "mem_vif", m_cfg.vif))
-            `uvm_fatal("TEST", "Nao encontrou mem_vif no uvm_config_db")
-        m_cfg.is_active = UVM_ACTIVE;
-        uvm_config_db#(mem_cfg)::set(this, "m_agt", "cfg", m_cfg);
+            `uvm_info("MEM_SEQ", $sformatf("---> WRITE mem[%0d]", i), UVM_LOW)
+            req = mem_seq_item::type_id::create($sformatf("req_wr_%0d", i));
+            start_item(req);
+            if (!req.randomize() with {
+                wr_en == 1'b1;
+                addr  == tgt_addr;
+                wdata == tgt_data;
+            }) `uvm_fatal("MEM_SEQ", "Falha na randomizacao do write")
+            finish_item(req);
+        end
 
-        // Instancia os agentes e o listener
-        r_agt  = rst_agent::type_id::create("r_agt", this);
-        m_agt  = mem_agent::type_id::create("m_agt", this);
-        m_list = mem_listener::type_id::create("m_list", this);
-    endfunction
+        // 2. Le as 4 palavras de volta e compara com o que foi escrito
+        for (int i = 0; i < 4; i++) begin
+            tgt_addr = i[9:0];
+            tgt_data = test_pattern[i];
 
-    virtual function void connect_phase(uvm_phase phase);
-        super.connect_phase(phase);
-        m_agt.ap.connect(m_list.analysis_export);
-    endfunction
-
-    virtual task run_phase(uvm_phase phase);
-        rst_init_seq  rst_seq;
-        mem_smoke_seq mem_seq;
-        phase.raise_objection(this);
-
-        // 1. Reset inicial: garante MEM_SEL_AES = 0 (dono = interface externa)
-        rst_seq = rst_init_seq::type_id::create("rst_seq");
-        rst_seq.start(r_agt.sqr);
-
-        // 2. Trafego de memoria: 4 writes + 4 reads com comparacao
-        mem_seq = mem_smoke_seq::type_id::create("mem_seq");
-        mem_seq.start(m_agt.sqr);
-
-        #100ns; // folga para o monitor publicar o ultimo acesso
-
-        // 3. Checagem do caminho de observacao: 8 acessos no total
-        if (m_list.count == 8)
-            `uvm_info("TEST_PASS", "SUCESSO! VIP de Memoria validado: 8 acessos observados e readback OK!", UVM_NONE)
-        else
-            `uvm_error("TEST_FAIL", $sformatf(
-                "Contagem inesperada de acessos: esperado 8, visto %0d", m_list.count))
-
-        phase.drop_objection(this);
+            `uvm_info("MEM_SEQ", $sformatf("---> READ mem[%0d]", i), UVM_LOW)
+            req = mem_seq_item::type_id::create($sformatf("req_rd_%0d", i));
+            start_item(req);
+            if (!req.randomize() with {
+                wr_en == 1'b0;
+                addr  == tgt_addr;
+            }) `uvm_fatal("MEM_SEQ", "Falha na randomizacao do read")
+            finish_item(req);
+            // o driver preencheu req.rdata durante o finish_item
+            if (req.rdata !== tgt_data)
+                `uvm_error("MEM_SEQ", $sformatf(
+                    "Readback de mem[%0d] errado: esperado 0x%08h, lido 0x%08h",
+                    i, tgt_data, req.rdata))
+            else
+                `uvm_info("MEM_SEQ", $sformatf("Readback de mem[%0d] OK", i), UVM_LOW)
+        end
     endtask
 
-endclass : mem_smoke_test
+endclass : mem_smoke_seq
 
 `endif

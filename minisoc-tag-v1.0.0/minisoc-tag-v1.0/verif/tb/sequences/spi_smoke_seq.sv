@@ -1,93 +1,79 @@
-`ifndef SPI_SMOKE_TEST_SV
-`define SPI_SMOKE_TEST_SV
+`ifndef SPI_SMOKE_SEQ_SV
+`define SPI_SMOKE_SEQ_SV
 
-
-`include "rst_init_seq.sv"
-`include "spi_smoke_seq.sv"
- 
 // ----------------------------------------------------------------------------
-// Smoke Test do SPI.
+// Smoke sequence do SPI: exercita o caminho basico de escrita e leitura
+// do banco de registradores.
 //
-// O que ele monta:
-//   - rst_agent (ativo): tira o DUT do reset antes de usar o SPI.
-//   - spi_agent (ativo): driver mestre Mode 0 + monitor por frame.
-//   - spi_listener (vindo do minisoc_env_pkg): pendurado no analysis port.
+//   1. WRITE KEY0 = 0xDEADBEEF  (registrador R/W qualquer)
+//   2. READ  KEY0               -> tem que voltar 0xDEADBEEF
+//   3. READ  VERSION (0x0D)     -> tem que voltar 0x0001_0100 (valor fixo
+//                                  no RTL, otimo para validar o caminho
+//                                  de leitura sem depender de escrita)
 //
-// O que ele verifica:
-//   - Readback: write KEY0, read KEY0 e read VERSION (checks na sequence).
-//   - Caminho de observacao: 1 frame (write) + 2 (read) + 2 (read) = 5.
+// Os checks ficam aqui mesmo na sequence (nivel basico): o driver devolve
+// o dado lido dentro do proprio req (req.rdata) apos o finish_item.
 // ----------------------------------------------------------------------------
-class spi_smoke_test extends uvm_test;
-    `uvm_component_utils(spi_smoke_test)
+class spi_smoke_seq extends uvm_sequence #(spi_seq_item);
+    `uvm_object_utils(spi_smoke_seq)
 
-    // VIP de Reset (necessario para inicializar o DUT)
-    rst_cfg      r_cfg;
-    rst_agent    r_agt;
+    localparam bit [5:0]  REG_KEY0        = 6'h00;
+    localparam bit [5:0]  REG_VERSION     = 6'h0D;
+    localparam bit [31:0] KEY0_TEST_VALUE = 32'hDEAD_BEEF;
+    localparam bit [31:0] VERSION_VALUE   = 32'h0001_0100;
 
-    // VIP de SPI
-    spi_cfg      s_cfg;
-    spi_agent    s_agt;
-    spi_listener s_list;
-
-    function new(string name = "spi_smoke_test", uvm_component parent = null);
-        super.new(name, parent);
+    function new(string name = "spi_smoke_seq");
+        super.new(name);
     endfunction
 
-    virtual function void build_phase(uvm_phase phase);
-        super.build_phase(phase);
+    virtual task body();
+        spi_seq_item req;
 
-        // Configura o Agente de Reset
-        r_cfg = rst_cfg::type_id::create("r_cfg");
-        if (!uvm_config_db#(virtual rst_if)::get(this, "", "rst_vif", r_cfg.vif))
-            `uvm_fatal("TEST", "Nao encontrou rst_vif no uvm_config_db")
-        r_cfg.is_active = UVM_ACTIVE;
-        uvm_config_db#(rst_cfg)::set(this, "r_agt", "cfg", r_cfg);
+        // 1. Escreve um valor conhecido em KEY0
+        `uvm_info("SPI_SEQ", "---> WRITE KEY0", UVM_LOW)
+        req = spi_seq_item::type_id::create("req_wr_key0");
+        start_item(req);
+        if (!req.randomize() with {
+            rwb   == 1'b0;
+            addr  == REG_KEY0;
+            wdata == KEY0_TEST_VALUE;
+        }) `uvm_fatal("SPI_SEQ", "Falha na randomizacao do write KEY0")
+        finish_item(req);
 
-        // Configura o Agente de SPI
-        s_cfg = spi_cfg::type_id::create("s_cfg");
-        if (!uvm_config_db#(virtual spi_if)::get(this, "", "spi_vif", s_cfg.vif))
-            `uvm_fatal("TEST", "Nao encontrou spi_vif no uvm_config_db")
-        s_cfg.is_active = UVM_ACTIVE;
-        uvm_config_db#(spi_cfg)::set(this, "s_agt", "cfg", s_cfg);
-
-        // Instancia os agentes e o listener
-        r_agt  = rst_agent::type_id::create("r_agt", this);
-        s_agt  = spi_agent::type_id::create("s_agt", this);
-        s_list = spi_listener::type_id::create("s_list", this);
-    endfunction
-
-    virtual function void connect_phase(uvm_phase phase);
-        super.connect_phase(phase);
-        // Liga o analysis port do monitor SPI no listener
-        s_agt.ap.connect(s_list.analysis_export);
-    endfunction
-
-    virtual task run_phase(uvm_phase phase);
-        rst_init_seq  rst_seq;
-        spi_smoke_seq spi_seq;
-        phase.raise_objection(this);
-
-        // 1. Reset inicial (sem ele, registradores do DUT ficam em X)
-        rst_seq = rst_init_seq::type_id::create("rst_seq");
-        rst_seq.start(r_agt.sqr);
-
-        // 2. Trafego SPI: write + readback + version
-        spi_seq = spi_smoke_seq::type_id::create("spi_seq");
-        spi_seq.start(s_agt.sqr);
-
-        #100ns; // folga para o monitor publicar o ultimo frame
-
-        // 3. Checagem do caminho de observacao:
-        //    1 frame do write + 2 frames por leitura (x2 leituras) = 5
-        if (s_list.count == 5)
-            `uvm_info("TEST_PASS", "SUCESSO! VIP de SPI validado: 5 frames observados e readback OK!", UVM_NONE)
+        // 2. Le KEY0 de volta e compara
+        `uvm_info("SPI_SEQ", "---> READ KEY0", UVM_LOW)
+        req = spi_seq_item::type_id::create("req_rd_key0");
+        start_item(req);
+        if (!req.randomize() with {
+            rwb  == 1'b1;
+            addr == REG_KEY0;
+        }) `uvm_fatal("SPI_SEQ", "Falha na randomizacao do read KEY0")
+        finish_item(req);
+        // o driver preencheu req.rdata durante o finish_item
+        if (req.rdata !== KEY0_TEST_VALUE)
+            `uvm_error("SPI_SEQ", $sformatf(
+                "Readback de KEY0 errado: esperado 0x%08h, lido 0x%08h",
+                KEY0_TEST_VALUE, req.rdata))
         else
-            `uvm_error("TEST_FAIL", $sformatf(
-                "Contagem inesperada de frames SPI: esperado 5, visto %0d", s_list.count))
+            `uvm_info("SPI_SEQ", "Readback de KEY0 OK", UVM_LOW)
 
-        phase.drop_objection(this);
+        // 3. Le o registrador VERSION (valor fixo em RTL)
+        `uvm_info("SPI_SEQ", "---> READ VERSION", UVM_LOW)
+        req = spi_seq_item::type_id::create("req_rd_version");
+        start_item(req);
+        if (!req.randomize() with {
+            rwb  == 1'b1;
+            addr == REG_VERSION;
+        }) `uvm_fatal("SPI_SEQ", "Falha na randomizacao do read VERSION")
+        finish_item(req);
+        if (req.rdata !== VERSION_VALUE)
+            `uvm_error("SPI_SEQ", $sformatf(
+                "VERSION errado: esperado 0x%08h, lido 0x%08h",
+                VERSION_VALUE, req.rdata))
+        else
+            `uvm_info("SPI_SEQ", "Leitura de VERSION OK", UVM_LOW)
     endtask
 
-endclass : spi_smoke_test
+endclass : spi_smoke_seq
 
 `endif
