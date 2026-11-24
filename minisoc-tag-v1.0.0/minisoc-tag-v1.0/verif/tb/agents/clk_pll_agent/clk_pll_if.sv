@@ -1,6 +1,3 @@
-`ifndef CLK_PLL_IF_SV
-`define CLK_PLL_IF_SV
-
 interface clk_pll_if;
     timeunit 1ps;
     timeprecision 1ps;
@@ -28,7 +25,32 @@ interface clk_pll_if;
             clk = 1'b0;
     end
 
-    
-endinterface: clk_pll_if
+    // ------------------------------------------------------------------------
+    // A-02 do Verification Plan  --  REQ-PLL-01
+    //
+    // "O clock do sistema so e liberado apos PLL_LOCKED."
+    //
+    // Enquanto o PLL nao estiver locked, o sys_clk tem de permanecer em 0.
+    // Se esta assertion falhar, o AES poderia estar operando com um clock
+    // invalido, o que e exatamente o que o REQ-PLL-01 proibe.
+    //
+    // O disable usa "rst_n !== 1'b1" em vez de "!rst_n" porque antes do
+    // primeiro reset o rst_n vale X: com !rst_n a expressao daria X e o
+    // comportamento do disable ficaria ambiguo. Assim a checagem so vale
+    // quando o reset esta comprovadamente liberado.
+    // ------------------------------------------------------------------------
+    property p_sys_clk_gated_until_lock;
+        @(posedge clk) disable iff (rst_n !== 1'b1)
+        (!pll_locked) |-> (sys_clk === 1'b0);
+    endproperty
 
-`endif
+    a_sys_clk_gated_until_lock: assert property (p_sys_clk_gated_until_lock)
+        else $error("A-02: sys_clk ativo com PLL_LOCKED=0 -- viola o REQ-PLL-01");
+
+    // Cover para provar que a janela "PLL desligado" foi de fato exercitada,
+    // e nao que a assertion passou por vacuidade.
+    c_pll_not_locked: cover property (
+        @(posedge clk) disable iff (rst_n !== 1'b1) (!pll_locked)
+    );
+
+endinterface: clk_pll_if

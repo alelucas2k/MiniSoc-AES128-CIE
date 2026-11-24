@@ -1,6 +1,3 @@
-`ifndef SPI_SMOKE_SEQ_SV
-`define SPI_SMOKE_SEQ_SV
-
 // ----------------------------------------------------------------------------
 // Smoke sequence do SPI: exercita o caminho basico de escrita e leitura
 // do banco de registradores.
@@ -75,5 +72,3 @@ class spi_smoke_seq extends uvm_sequence #(spi_seq_item);
     endtask
 
 endclass : spi_smoke_seq
-
-`endif

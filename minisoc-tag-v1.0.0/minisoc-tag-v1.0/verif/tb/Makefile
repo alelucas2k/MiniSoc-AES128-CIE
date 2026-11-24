@@ -50,6 +50,10 @@ run_spi_smoke:
 run_mem_smoke:
 	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=mem_smoke_test
 
+# T-PLL-DIV: varredura dos quatro divisores do PLL
+run_pll_div:
+	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=pll_div_test
+
 # Abre a simulação de forma interativa na GUI (Verdi ou DVE)
 vcs_gui:
 	./simv -gui -verdi_opts "-sswr signal.rc" &
