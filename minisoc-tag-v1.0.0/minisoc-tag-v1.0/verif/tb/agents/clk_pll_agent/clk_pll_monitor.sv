@@ -71,28 +71,15 @@ class clk_pll_monitor extends uvm_monitor;
     endfunction
 
     virtual task run_phase(uvm_phase phase);
-        // ------------------------------------------------------------------
-        // Aguarda a liberação do PRIMEIRO reset de verdade.
-        //
-        // CUIDADO: não basta "@(posedge vif.rst_n)". O rst_n nasce em X e o
-        // rst_driver o leva a 1 no tempo zero; em SystemVerilog a transição
-        // X->1 CONTA COMO POSEDGE, então aquele @ sozinho dispararia em t=0,
-        // antes da sequence de reset rodar, e a mensagem abaixo seria falsa.
-        // Esperar primeiro a BORDA DE DESCIDA garante que o reset começou.
-        //
-        // Efeito colateral útil: depois do reset o banco SPI já zerou o
-        // cfg_pll_enable, então o pll_enable observado na thread 3 não vale
-        // mais X e não gera um posedge falso de X->1.
-        // ------------------------------------------------------------------
         @(negedge vif.rst_n);
         @(posedge vif.rst_n);
         `uvm_info("CLK_MON", $sformatf(
             "Reset liberado em %0t. Iniciando monitoramento do clock/PLL...", $time), UVM_LOW);
 
         fork
-            // ================================================================
+
             // THREAD 1: checagem contínua do clock de referência
-            // ================================================================
+
             begin
                 realtime t_pos1, t_neg, t_pos2;
                 realtime period, high_time;
@@ -151,9 +138,8 @@ class clk_pll_monitor extends uvm_monitor;
                 end
             end
 
-            // ================================================================
             // THREAD 2: detecção de travamento ou perda de clock
-            // ================================================================
+
             begin
                 forever begin
                     fork : clk_timeout_block
@@ -170,23 +156,8 @@ class clk_pll_monitor extends uvm_monitor;
                 end
             end
 
-            // ================================================================
             // THREAD 3: observação do PLL
-            //
-            // SEQUÊNCIA ESPERADA NO DUT:
-            //   1. O software escreve PLL_ENABLE=1 em SYSTEM_CONTROL via SPI.
-            //      O mock LATCHA o PLL_DIV_SEL exatamente nessa borda.
-            //   2. O mock espera de 8 a 31 ciclos de referência (LFSR) e
-            //      levanta o pll_locked.
-            //   3. SÓ APÓS O LOCK o sys_clk é liberado  -> REQ-PLL-01.
-            //   4. O sys_clk corre na frequência do divisor latchado.
-            //
-            // A latência é medida com timestamps e não com um contador
-            // amostrado a cada borda: marcar $realtime nas duas pontas e
-            // dividir pelo período da referência dá o mesmo resultado sem
-            // depender da ordem de avaliação entre o NBA do DUT e a leitura
-            // do monitor.
-            // ================================================================
+
             begin
                 realtime  t_enable, t_locked;
                 realtime  t_sys0, t_sys1;
@@ -196,7 +167,7 @@ class clk_pll_monitor extends uvm_monitor;
                 clk_pll_seq_item item;
 
                 forever begin
-                    // --- 1. Espera o software ligar o PLL ------------------
+                    // Espera ligar o PLL
                     @(posedge vif.pll_enable);
                     t_enable        = $realtime;
                     div_sel_sampled = vif.pll_div_sel;
@@ -205,10 +176,10 @@ class clk_pll_monitor extends uvm_monitor;
                         "[PLL] Habilitado em %0t com PLL_DIV_SEL=%02b (divisor /%0d)",
                         $time, div_sel_sampled, (1 << div_sel_sampled)), UVM_MEDIUM);
 
-                    // --- 2. Espera o lock ---------------------------------
-                    // A condição também olha o pll_enable: se o software
-                    // desabilitar no meio da aquisição, saímos desta
-                    // observação em vez de ficar presos para sempre.
+                    //Espera o lock
+                    // A condição também olha o pll_enable: se 
+                    // desabilitar no meio da aquisição, sai dessa
+                    // observação em vez de ficar aqui para sempre.
                     while (!vif.pll_locked && vif.pll_enable)
                         @(posedge vif.clk);
 
@@ -221,7 +192,7 @@ class clk_pll_monitor extends uvm_monitor;
                     t_locked    = $realtime;
                     lock_cycles = int'(((t_locked - t_enable) / 1ns) / expected_period_ns);
 
-                    // --- 3. Mede o período do sys_clk ---------------------
+                    // 3. Mede o período do sys_clk
                     // A primeira borda é descartada de propósito: o gate do
                     // clock no RTL abre numa borda de descida da referência,
                     // então a primeira borda do sys_clk pode não representar
@@ -237,11 +208,7 @@ class clk_pll_monitor extends uvm_monitor;
                     expected_sys_ns  = expected_period_ns * (1 << div_sel_sampled);
                     sys_tolerance_ns = period_tolerance_ns * (1 << div_sel_sampled);
 
-                    // --- 5. Checagens --------------------------------------
-                    // NOTA DE ARQUITETURA: checar dentro do monitor é
-                    // pragmático enquanto não existe scoreboard. Quando ele
-                    // entrar no env, estes dois ifs migram para lá e o
-                    // monitor volta a apenas medir e publicar.
+                    // --- 5. Checagens 
                     if ((sys_period_ns < (expected_sys_ns - sys_tolerance_ns)) ||
                         (sys_period_ns > (expected_sys_ns + sys_tolerance_ns)))
                         `uvm_error("SYS_CLK_PERIOD_VIOLATION", $sformatf(

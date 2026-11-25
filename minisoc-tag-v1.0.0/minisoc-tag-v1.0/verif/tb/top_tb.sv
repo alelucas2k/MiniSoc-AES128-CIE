@@ -6,9 +6,11 @@ import rst_agent_pkg::*;
 import clk_pll_agent_pkg::*;
 import spi_agent_pkg::*;
 import mem_agent_pkg::*;
+
 `include "spi_smoke_test.sv"
 `include "rst_smoke_test.sv"
 `include "mem_smoke_test.sv"
+`include "dut_cfg_test.sv"
 
 module top_tb;
 

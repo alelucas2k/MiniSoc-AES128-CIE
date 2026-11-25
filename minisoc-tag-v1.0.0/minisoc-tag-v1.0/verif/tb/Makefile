@@ -1,4 +1,3 @@
-# Arquivo: verif/tb/Makefile
 RTL_DIR = ../../frontend/rtl
 
 MINISOC_RTL = \
@@ -34,10 +33,10 @@ TB_FILES = \
 VCS_FLAGS = -full64 -sverilog -ntb_opts uvm-1.2 -kdb -debug_access+all \
             +ntb_random_seed=random -xlrm floating_pnt_constraint -timescale=1ps/1ps -l vcs_uvm.log
 
-vcs_comp:
+comp:
 	vcs $(VCS_FLAGS) $(INCDIRS) $(MINISOC_RTL) $(TB_FILES)
 
-vcs_run:
+run:
 	./simv +UVM_VERBOSITY=UVM_MEDIUM
 
 # Smoke tests individuais (selecionados por +UVM_TESTNAME)
@@ -50,12 +49,11 @@ run_spi_smoke:
 run_mem_smoke:
 	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=mem_smoke_test
 
-# T-PLL-DIV: varredura dos quatro divisores do PLL
-run_pll_div:
-	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=pll_div_test
-
+run_dut_cfg:
+	./simv +UVM_VERBOSITY=UVM_MEDIUM +UVM_TESTNAME=dut_cfg_test +WAVE=dut_cfg -l dut_cfg_test.log
+	
 # Abre a simulação de forma interativa na GUI (Verdi ou DVE)
-vcs_gui:
+gui:
 	./simv -gui -verdi_opts "-sswr signal.rc" &
 
 # Abre o arquivo de ondas salvo diretamente no Verdi usando a base KDB compilada
